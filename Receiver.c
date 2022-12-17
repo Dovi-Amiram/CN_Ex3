@@ -87,15 +87,14 @@ int main() {
         return -1;
     }
 
+    printf("A new client connection accepted\n");
+
 
     for (int i = 0; i < 2; i++) {
-
-        printf("A new client connection accepted\n");
 
         int *part_size;
         recv(clientSocket, part_size, sizeof(int), 0);
         printf("%d", *part_size);
-
 
         char cc_algo[SOCKET_SIZE];
 
@@ -121,7 +120,7 @@ int main() {
         struct timeval end, start;
         gettimeofday(&start, NULL);
 
-        while (total_byte_count < ((*part_size) / BUNDLE) * BUNDLE) {
+        while (total_byte_count < (*part_size / BUNDLE * BUNDLE) {
             current_bytes_count = recv(clientSocket, buffer, BUNDLE, 0);
             total_byte_count += current_bytes_count;
 
@@ -129,9 +128,18 @@ int main() {
                 printf("Connection with sender closed.\n");
             }
         }
-        total_byte_count += recv(clientSocket, buffer, (*part_size - total_byte_count), 0);
+        if (total_byte_count == *part_size - total_byte_count)
+            total_byte_count += recv(clientSocket, buffer, (*part_size - total_byte_count), 0);
+        else
+            prinf("something went wrong!!")
 
         gettimeofday(&end, NULL);
+
+        if (total_byte_count == *part_size) {
+            int Xor = 1234 ^ 5678;
+            write(clientSocket, reply, sizeof(reply));
+        }
+
         printf("Part A received. received %ld bytes.\n", total_byte_count);
 
         double time =
@@ -139,24 +147,19 @@ int main() {
 
         printf("The time it took to receive part A is %f seconds.\n", time);
 
+
         total_byte_count = 0;
         buffer[total_byte_count] = '\0';
     }
 
-  //      double avg_time = total_time / 5;
-  //      char CC[100];
-  //      if (i == 0)
-            strcpy(CC, "cubic");
-        else
+    printf("check check check");
+//
+//    printf("\nThe average time it took to get each file (out of 5 samples) in CC method %s is: %f\n\n", CC,
+//           avg_time);
+}
 
-            strcpy(CC, "reno");
+printf("Exit\n");
+close(listeningSocket);
 
-        printf("\nThe average time it took to get each file (out of 5 samples) in CC method %s is: %f\n\n", CC,
-               avg_time);
-    }
-
-    printf("Exit\n");
-    close(listeningSocket);
-
-    return 0;
+return 0;
 }

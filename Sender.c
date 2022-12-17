@@ -82,6 +82,12 @@ int main() {
         return -1;
     }
 
+    // get ACK
+    bzero(getReply, sizeof(getReply));
+    read(sock, getReply, sizeof(getReply));
+    if (strcmp(getReply, "ACK") == 0) printf("From Server : %s\n", getReply);
+    else printf("The Server didnt answer\n");
+
     printf("connected to server\n");
 
     // char array to save CC algo name
@@ -118,7 +124,11 @@ int main() {
                 } else if (bytesSent < size_of_A) {
                     printf("sent only %d bytes from the required %d.\n", bytesSent, size_of_A);
                 } else {
-                    printf("message was successfully sent.\n");
+                    bzero(getReply, sizeof(getReply));
+                    read(sock, getReply, sizeof(getReply));
+                    if (getReply == 1234 ^ 5678)
+                        printf("Part A was successfully sent\n", getReply);
+                    else printf("client: something went wrong\n");
                 }
             } else {
                 printf("Sending part B using reno CC algorithm\n");
@@ -145,6 +155,7 @@ int main() {
         printf("Would you like to send the file again? (Y/N)");
         scanf("%c", &userDecision);
     }
+
     close(sock);
     return 0;
 }
