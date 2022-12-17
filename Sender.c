@@ -96,6 +96,7 @@ int main() {
             else strcpy(cc_algo, "reno");
 
             socklen_t len;
+
             len = sizeof(cc_algo);
             if (setsockopt(sock, IPPROTO_TCP, TCP_CONGESTION, cc_algo, len) != 0) {
                 perror("setsockopt");

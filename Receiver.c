@@ -148,6 +148,7 @@ int main() {
   //      if (i == 0)
             strcpy(CC, "cubic");
         else
+
             strcpy(CC, "reno");
 
         printf("\nThe average time it took to get each file (out of 5 samples) in CC method %s is: %f\n\n", CC,
