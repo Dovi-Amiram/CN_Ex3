@@ -1,22 +1,22 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
+//#include <stdlib.h>
+//#include <sys/types.h>
 #include <sys/socket.h>
-#include <arpa/inet.h>
+//#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <string.h>
 #include <errno.h>
-#include <signal.h>
+//#include <signal.h>
 #include <sys/time.h>
 #include <unistd.h>
 
 #define SERVER_PORT 5060
-#define BUFFER_SIZE 1024
 #define SOCKET_SIZE 16
 #define BUNDLE 32768
 
 int main() {
+
     socklen_t len;
     // signal(SIGPIPE, SIG_IGN);  // on linux to prevent crash on closing socket
 
@@ -74,7 +74,7 @@ int main() {
     printf("Waiting for incoming TCP-connections...\n");
     struct sockaddr_in clientAddress;  //
     socklen_t clientAddressLen = sizeof(clientAddress);
-    char sendbuffer[BUFFER_SIZE] = {'\0'};
+    //char sendbuffer[BUFFER_SIZE] = {'\0'};
 
 
     memset(&clientAddress, 0, sizeof(clientAddress));
@@ -85,19 +85,20 @@ int main() {
         // close the sockets
         close(listeningSocket);
         return -1;
+    } else {
+        printf("A new client connection accepted\n");
     }
-
-    printf("A new client connection accepted\n");
-
 
     for (int i = 0; i < 2; i++) {
 
-        int *part_size;
+        printf("check 1\n");
+
+        int part_size[1];
         recv(clientSocket, part_size, sizeof(int), 0);
-        printf("%d", *part_size);
+        int size = part_size[0];
+        printf("%d", size);
 
         char cc_algo[SOCKET_SIZE];
-
         if (i == 0)
             strcpy(cc_algo, "cubic");
         else strcpy(cc_algo, "reno");
@@ -115,29 +116,32 @@ int main() {
         char buffer[BUNDLE];
 
         long total_byte_count = 0, current_bytes_count = 0;
-        double total_time = 0;
+        //double total_time = 0;
 
         struct timeval end, start;
         gettimeofday(&start, NULL);
 
-        while (total_byte_count < (*part_size / BUNDLE * BUNDLE) {
+        while (total_byte_count < (size / BUNDLE * BUNDLE)) {
+            printf("check 2\n");
+
             current_bytes_count = recv(clientSocket, buffer, BUNDLE, 0);
             total_byte_count += current_bytes_count;
 
-            if (current_bytes_count == 0) {
-                printf("Connection with sender closed.\n");
-            }
+            // if (current_bytes_count == 0) {
+            //    printf("Connection with sender closed.\n");
+        //}
         }
-        if (total_byte_count == *part_size - total_byte_count)
-            total_byte_count += recv(clientSocket, buffer, (*part_size - total_byte_count), 0);
+
+        if (total_byte_count == size - total_byte_count)
+            total_byte_count += recv(clientSocket, buffer, (size - total_byte_count), 0);
         else
-            prinf("something went wrong!!")
+            printf("something went wrong!!");
 
         gettimeofday(&end, NULL);
 
         if (total_byte_count == *part_size) {
-            int Xor = 1234 ^ 5678;
-            write(clientSocket, reply, sizeof(reply));
+            int xor = 2421 ^ 7494;
+            write(clientSocket, &xor, sizeof(xor));
         }
 
         printf("Part A received. received %ld bytes.\n", total_byte_count);
@@ -156,7 +160,7 @@ int main() {
 //
 //    printf("\nThe average time it took to get each file (out of 5 samples) in CC method %s is: %f\n\n", CC,
 //           avg_time);
-}
+
 
 printf("Exit\n");
 close(listeningSocket);

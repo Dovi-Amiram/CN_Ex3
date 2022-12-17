@@ -15,8 +15,10 @@
 
 int main() {
     int xor = 2421 ^ 7494;
+    int zero = 0;
+    int* get_xor = &zero;
     char getReply[10];
-    int bytesSent = -1;
+    long bytesSent = -1;
 
     /// open the file
     FILE *f = fopen(FILE_TO_SEND, "r");
@@ -73,6 +75,8 @@ int main() {
         return -1;
     }
 
+    printf("check 1");
+
     // Make a connection to the server with socket SendingSocket.
     int connectResult = connect(sock, (struct sockaddr *) &serverAddress, sizeof(serverAddress));
     if (connectResult == -1) {
@@ -81,6 +85,7 @@ int main() {
         close(sock);
         return -1;
     }
+    printf("check 2");
 
     // get ACK
     bzero(getReply, sizeof(getReply));
@@ -122,12 +127,11 @@ int main() {
                 } else if (bytesSent == 0) {
                     printf("peer has closed the TCP connection prior to send().\n");
                 } else if (bytesSent < size_of_A) {
-                    printf("sent only %d bytes from the required %d.\n", bytesSent, size_of_A);
+                    printf("sent only %ld bytes from the required %d.\n", bytesSent, size_of_A);
                 } else {
-                    bzero(getReply, sizeof(getReply));
-                    read(sock, getReply, sizeof(getReply));
-                    if (getReply == 1234 ^ 5678)
-                        printf("Part A was successfully sent\n", getReply);
+                    read(sock, get_xor, sizeof(int));
+                    if (*get_xor == xor)
+                        printf("Part A was successfully sent\n");
                     else printf("client: something went wrong\n");
                 }
             } else {
@@ -138,9 +142,9 @@ int main() {
                 } else if (bytesSent == 0) {
                     printf("Receiver doesn't accept requests!.\n");
                 } else if (bytesSent < size_of_B) {
-                    printf("sent only %d bytes from the required %d.\n", bytesSent, size_of_B);
+                    printf("sent only %ld bytes from the required %d.\n", bytesSent, size_of_B);
                 } else {
-                    printf("Sent total %d bytes\n", bytesSent);
+                    printf("Sent total %ld bytes\n", bytesSent);
                 }
             }
 
