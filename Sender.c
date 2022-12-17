@@ -82,12 +82,6 @@ int main() {
         return -1;
     }
 
-    // get ACK
-    bzero(getReply, sizeof(getReply));
-    read(sock, getReply, sizeof(getReply));
-    if (strcmp(getReply, "ACK") == 0) printf("From Server : %s\n", getReply);
-    else printf("The Server didnt answer\n");
-
     printf("connected to server\n");
 
     // char array to save CC algo name
@@ -141,7 +135,8 @@ int main() {
 
             bzero(getReply, sizeof(getReply));
             read(sock, getReply, sizeof(getReply));
-            if (strcmp(getReply, "ACK") == 0) printf("From Server : %s\n", getReply);
+            if (strcmp(getReply, "ACK") == 0)
+                printf("From Server : %s\n", getReply);
             else printf("The Server didnt answer\n");
         }
 
