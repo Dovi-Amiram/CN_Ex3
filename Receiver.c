@@ -16,7 +16,7 @@
 #define BUNDLE 32768
 
 int main() {
-
+    int dummy = 0;
     // signal(SIGPIPE, SIG_IGN);  // on linux to prevent crash on closing socket
 
     // Open the listening (server) socket
@@ -51,12 +51,9 @@ int main() {
     int bindResult = bind(listeningSocket, (struct sockaddr *) &serverAddress, sizeof(serverAddress));
     if (bindResult == -1) {
         printf("Bind failed with error code : %d", errno);
-        // close the socket
         close(listeningSocket);
         return -1;
     }else printf("executed Bind() successfully\n");
-
-    
 
     // Make the socket listen.
     // 500 is a Maximum size of queue connection requests
@@ -64,7 +61,6 @@ int main() {
     int listenResult = listen(listeningSocket, 3);
     if (listenResult == -1) {
         printf("listen() failed with error code : %d", errno);
-        // close the socket
         close(listeningSocket);
         return -1;
     }else printf("Waiting for incoming TCP-connections...\n");
@@ -73,90 +69,96 @@ int main() {
     
     struct sockaddr_in clientAddress;  
     memset(&clientAddress, 0, sizeof(clientAddress));
-    socklen_t len_clientAddress= sizeof(clientAddress);
+    socklen_t len_clientAddress = sizeof(clientAddress);
    
     int clientSocket = accept(listeningSocket, (struct sockaddr *) &clientAddress, &len_clientAddress);
     if (clientSocket == -1) {
         printf("listen failed with error code : %d", errno);
-        // close the sockets
         close(listeningSocket);
         return -1;
     }else printf("A new client connection accepted\n");
+
+    int fileSize;
+    recv(clientSocket, &fileSize, sizeof(int), 0);
+    send(clientSocket, &dummy, sizeof(int), 0);
     
     char cc_algo[SOCKET_SIZE];
-    
+    int running = 1;
+    int xor = 2421 ^ 7494;
 
-    for (int i = 0; i < 2; i++) {
+    while(running)
+    {
+        char buffer[fileSize/2];
+        int totalbytes = 0;
 
-        char part = ' ';
-        if (i == 0){
-            strcpy(cc_algo, "cubic");
-            part = 'A';
-        }
-        else {
-            strcpy(cc_algo, "reno");
-            part = 'B';
-        }
-        socklen_t len = sizeof(cc_algo);
-        if (setsockopt(listeningSocket, IPPROTO_TCP, TCP_CONGESTION, cc_algo, len) != 0) {
+        printf("Changing to cubic...\n");
+        strcpy(cc_algo, "cubic");
+        socklen_t len = strlen(cc_algo);
+        if (setsockopt(listeningSocket, IPPROTO_TCP, TCP_CONGESTION, cc_algo, len) == -1) {
             perror("setsockopt");
             return -1;
         }
-        if (getsockopt(listeningSocket, IPPROTO_TCP, TCP_CONGESTION, cc_algo, &len) != 0) {
-            perror("getsockopt");
+
+        printf("Waiting for part A...\n");
+
+        while (totalbytes < (fileSize/2))
+        {
+            int bytesgot = recv(clientSocket, buffer+totalbytes, sizeof(char), 0);
+            totalbytes += bytesgot;
+
+            if (bytesgot == 0)
+            {
+                printf("Connection with sender closed, exiting...\n");
+                running = 0;
+                break;
+            }
+        }
+
+        if (running == 0)
+            break;
+
+        printf("Got part A\n");
+
+        printf("Sending authntication check\n");
+        send(clientSocket, &xor, sizeof(int), 0);
+        printf("Authontication sent\n");
+
+        printf("Changeing to reno..\n");
+
+        strcpy(cc_algo, "reno");
+        len = strlen(cc_algo);
+        if (setsockopt(listeningSocket, IPPROTO_TCP, TCP_CONGESTION, cc_algo, len) == -1) {
+            perror("setsockopt");
             return -1;
         }
 
-        int part_size[1];
-        recv(clientSocket, part_size, sizeof(int), 0);
-        int size = part_size[0] - sizeof(int);
-        
-        char buffer[BUNDLE];
-        long total_byte_count = 0, current_bytes_count = 0;
-        //double total_time = 0;
+        totalbytes = 0;
 
-        printf("receiving part %c using %s CC algorithm\n", part, cc_algo);
+        printf("Waiting for part B...\n");
 
-        struct timeval end, start;
-        gettimeofday(&start, NULL);
-        while (total_byte_count < (size / BUNDLE * BUNDLE)) {
+        while (totalbytes < (fileSize/2))
+        {
+            int bytesgot = recv(clientSocket, buffer+totalbytes, sizeof(char), 0);
+            totalbytes += bytesgot;
 
-            current_bytes_count = recv(clientSocket, buffer, BUNDLE, 0);
-            total_byte_count += current_bytes_count;
-
-            // if (current_bytes_count == 0) {
-            //    printf("Connection with sender closed.\n");
-        //}
+            if (bytesgot == 0)
+            {
+                printf("Connection with sender closed, exiting...\n");
+                running = 0;
+                break;
+            }
         }
 
-        if (total_byte_count == size - total_byte_count)
-            total_byte_count += recv(clientSocket, buffer, (size - total_byte_count), 0);
-        else
-            printf("something went wrong!!\n");
+        if (running == 0)
+            break;
 
-        gettimeofday(&end, NULL);
-
-        if (total_byte_count == *part_size) {
-            int xor = 2421 ^ 7494;
-            write(clientSocket, &xor, sizeof(xor));
-        }
-
-        printf("Part %c received. received %ld bytes.\n", part, total_byte_count);
-
-        double time = (double)((end.tv_sec - start.tv_sec) * 1000000 + end.tv_usec - start.tv_usec) / 1000000;
-
-        printf("The time it took to receive part %c is %f seconds.\n", part, time);
-
-        total_byte_count = 0;
-        buffer[total_byte_count] = '\0';
+        printf("Got part B\n");
+        send(clientSocket, &dummy, sizeof(int), 0);
     }
 
-//
-//    printf("\nThe average time it took to get each file (out of 5 samples) in CC method %s is: %f\n\n", CC,
-//           avg_time);
+    printf("Exit\n");
+    close(clientSocket);
+    close(listeningSocket);
 
-printf("Exit\n");
-close(listeningSocket);
-
-return 0;
+    return 0;
 }

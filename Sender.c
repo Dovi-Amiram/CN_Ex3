@@ -13,10 +13,8 @@
 #define SOCKET_SIZE 16
 
 int main() {
+    int dummy = 0;
     
-    // char getReply[10];
-   
-
     /// open the file
     FILE *f = fopen(FILE_TO_SEND, "r");
     if (f == NULL) {
@@ -29,23 +27,8 @@ int main() {
     int fileSize = (int) ftell(f);
     fseek(f, 0, SEEK_SET);
 
-    /// initialize size variables for both buffers
-    int size_of_A = fileSize / 2;
-    int size_of_B = fileSize - size_of_A;
-
-    /// initialize 2 buffers and allocate memory for both
-    char *bufferA, *bufferB;
-    bufferA = malloc(sizeof(int) + size_of_A);
-    bufferB = malloc(sizeof(int) + size_of_B);
-
-    /// set the size of each of the parts in the start of the array
-    memcpy(bufferA, &size_of_A, sizeof(int));
-    memcpy(bufferB, &size_of_B, sizeof(int));
-
-    /// read the file splitting it into the 2 buffers
-    fread((bufferA) + sizeof(int), 1, size_of_A, f);
-    fread((bufferB) + sizeof(int), 1, size_of_B, f);
-    /// close the file
+    char filedata[fileSize];
+    fread(filedata, sizeof(char), fileSize, f);
     fclose(f);
 
     /// open a socket
@@ -76,100 +59,70 @@ int main() {
     int connectResult = connect(sock, (struct sockaddr *) &serverAddress, sizeof(serverAddress));
     if (connectResult == -1) {
         printf("connect() failed with error code : %d", errno);
-        // cleanup the socket;
         close(sock);
         return -1;
     }else printf("connected to server\n");
-   
 
-    // // get ACK
-    // bzero(getReply, sizeof(getReply));
-    // read(sock, getReply, sizeof(getReply));
-    // if (strcmp(getReply, "ACK") == 0) printf("From Server : %s\n", getReply);
-    // else printf("The Server didnt answer\n");
+    send(sock, &fileSize, sizeof(int), 0);
+    recv(sock, &dummy, sizeof(int), 0);
 
-    
-
-    // char array to save CC algo name
     char cc_algo[SOCKET_SIZE];
-
-    // initialize as 'Y' to allow first time sending
-    char userDecision = 'Y';
     long bytesSent = -1;
     int xor = 2421 ^ 7494;
-    int zero = 0;
-    int* get_xor = &zero;
-    socklen_t len = sizeof(cc_algo);
+    int get_xor;
 
-    while (userDecision != 'N') {
-        for (int j = 0; j < 2; j++) {
-            if (j == 0) {
-                strcpy(cc_algo, "cubic");
-                if (setsockopt(sock, IPPROTO_TCP, TCP_CONGESTION, cc_algo, len) != 0) {
-                    perror("setsockopt");
-                    return -1;
-                }
-                if (getsockopt(sock, IPPROTO_TCP, TCP_CONGESTION, cc_algo, &len) != 0) {
-                    perror("getsockopt");
-                    return -1;
-                }
-
-                printf("Sending part A using cubic CC algorithm\n");
-                bytesSent = send(sock, bufferA, size_of_A, 0);
-                if (bytesSent == -1) {
-                    printf("send() failed with error code : %d", errno);
-                } else if (bytesSent == 0) {
-                    printf("peer has closed the TCP connection prior to send().\n");
-                } else if (bytesSent < size_of_A) {
-                    printf("sent only %ld bytes from the required %d.\n", bytesSent, size_of_A);
-                } else {
-                    read(sock, get_xor, sizeof(int));
-                    if (*get_xor == xor)
-                        printf("Part A was successfully sent\n");
-                    else printf("client: something went wrong\n");
-                }
-            
-            }
-            else {
-                strcpy(cc_algo, "reno");
-                if (setsockopt(sock, IPPROTO_TCP, TCP_CONGESTION, cc_algo, len) != 0) {
-                    perror("setsockopt");
-                    return -1;
-                }
-                if (getsockopt(sock, IPPROTO_TCP, TCP_CONGESTION, cc_algo, &len) != 0) {
-                    perror("getsockopt");
-                    return -1;
-                }
-
-                printf("Sending part B using reno CC algorithm\n");
-                bytesSent = send(sock, bufferB, size_of_B, 0);
-                if (bytesSent == -1) {
-                    printf("send() failed with error code : %d", errno);
-                } else if (bytesSent == 0) {
-                    printf("Receiver doesn't accept requests!.\n");
-                } else if (bytesSent < size_of_B) {
-                    printf("sent only %ld bytes from the required %d.\n", bytesSent, size_of_B);
-                } else {
-                    printf("Sent total %ld bytes\n", bytesSent);
-                }
-
-            }
-
-           
-
-            // bzero(getReply, sizeof(getReply));
-            // read(sock, getReply, sizeof(getReply));
-            // if (strcmp(getReply, "ACK") == 0)
-            //     printf("From Server : %s\n", getReply);
-            // else printf("The Server didnt answer\n");
+    while (1)
+    {
+        strcpy(cc_algo, "cubic");
+        socklen_t len = strlen(cc_algo);
+        if (setsockopt(sock, IPPROTO_TCP, TCP_CONGESTION, cc_algo, len) == -1)
+        {
+            perror("setsockopt");
+            return -1;
         }
 
+        printf("Sending part A using cubic CC algorithm\n");
+        bytesSent = send(sock, filedata, (fileSize/2), 0);
+        if (bytesSent == -1) printf("send() failed with error code : %d", errno);
+        else if (bytesSent == 0) printf("peer has closed the TCP connection prior to send().\n");
+        else if (bytesSent < (fileSize/2)) printf("sent only %ld bytes from the required %d.\n", bytesSent, (fileSize/2));
+        else printf("Sent %d bytes\n", bytesSent);
+        
+        recv(sock, &get_xor, sizeof(int), 0);
+        if (get_xor == xor)
+            printf("Part A was successfully sent\n");
+        else printf("client: something went wrong\n");
 
-        printf("Would you like to send the file again? (Y/N)");
-        scanf("%c", &userDecision);
+        strcpy(cc_algo, "reno");
+        len = strlen(cc_algo);
+        if (setsockopt(sock, IPPROTO_TCP, TCP_CONGESTION, cc_algo, len) != 0) {
+            perror("setsockopt");
+            return -1;
+        }
+
+        printf("Sending part B using reno CC algorithm\n");
+        bytesSent = send(sock, filedata+(fileSize/2)-1, (fileSize/2), 0);
+        if (bytesSent == -1) printf("send() failed with error code : %d", errno);
+        else if (bytesSent == 0) printf("peer has closed the TCP connection prior to send().\n");
+        else if (bytesSent < (fileSize/2)) printf("sent only %ld bytes from the required %d.\n", bytesSent, (fileSize/2));
+        else printf("Sent %d bytes\n", bytesSent);
+        
+        printf("Part B was successfully sent\n");
+       
+
+        char choose;
+        printf("Send again? Y = yes, N = no\n");
+        scanf(" %c", &choose);
+
+        recv(sock, &dummy, sizeof(int), 0);
+
+        if (choose == 'N')
+        {
+            close(sock);
+            break;
+        }
     }
 
-    close(sock);
     return 0;
 }
 
