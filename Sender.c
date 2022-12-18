@@ -7,18 +7,15 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
-
 #define SERVER_PORT 5060
 #define SERVER_IP_ADDRESS "127.0.0.1"
 #define FILE_TO_SEND "1mb.txt"
 #define SOCKET_SIZE 16
 
 int main() {
-    int xor = 2421 ^ 7494;
-    int zero = 0;
-    int* get_xor = &zero;
-    char getReply[10];
-    long bytesSent = -1;
+    
+    // char getReply[10];
+   
 
     /// open the file
     FILE *f = fopen(FILE_TO_SEND, "r");
@@ -75,8 +72,6 @@ int main() {
         return -1;
     }
 
-    printf("check 1");
-
     // Make a connection to the server with socket SendingSocket.
     int connectResult = connect(sock, (struct sockaddr *) &serverAddress, sizeof(serverAddress));
     if (connectResult == -1) {
@@ -84,42 +79,41 @@ int main() {
         // cleanup the socket;
         close(sock);
         return -1;
-    }
-    printf("check 2");
+    }else printf("connected to server\n");
+   
 
-    // get ACK
-    bzero(getReply, sizeof(getReply));
-    read(sock, getReply, sizeof(getReply));
-    if (strcmp(getReply, "ACK") == 0) printf("From Server : %s\n", getReply);
-    else printf("The Server didnt answer\n");
+    // // get ACK
+    // bzero(getReply, sizeof(getReply));
+    // read(sock, getReply, sizeof(getReply));
+    // if (strcmp(getReply, "ACK") == 0) printf("From Server : %s\n", getReply);
+    // else printf("The Server didnt answer\n");
 
-    printf("connected to server\n");
+    
 
     // char array to save CC algo name
     char cc_algo[SOCKET_SIZE];
 
     // initialize as 'Y' to allow first time sending
     char userDecision = 'Y';
+    long bytesSent = -1;
+    int xor = 2421 ^ 7494;
+    int zero = 0;
+    int* get_xor = &zero;
+    socklen_t len = sizeof(cc_algo);
 
     while (userDecision != 'N') {
         for (int j = 0; j < 2; j++) {
-            if (j == 0) strcpy(cc_algo, "cubic");
-            else strcpy(cc_algo, "reno");
-
-            socklen_t len;
-
-            len = sizeof(cc_algo);
-            if (setsockopt(sock, IPPROTO_TCP, TCP_CONGESTION, cc_algo, len) != 0) {
-                perror("setsockopt");
-                return -1;
-            }
-
-            if (getsockopt(sock, IPPROTO_TCP, TCP_CONGESTION, cc_algo, &len) != 0) {
-                perror("getsockopt");
-                return -1;
-            }
-
             if (j == 0) {
+                strcpy(cc_algo, "cubic");
+                if (setsockopt(sock, IPPROTO_TCP, TCP_CONGESTION, cc_algo, len) != 0) {
+                    perror("setsockopt");
+                    return -1;
+                }
+                if (getsockopt(sock, IPPROTO_TCP, TCP_CONGESTION, cc_algo, &len) != 0) {
+                    perror("getsockopt");
+                    return -1;
+                }
+
                 printf("Sending part A using cubic CC algorithm\n");
                 bytesSent = send(sock, bufferA, size_of_A, 0);
                 if (bytesSent == -1) {
@@ -134,7 +128,19 @@ int main() {
                         printf("Part A was successfully sent\n");
                     else printf("client: something went wrong\n");
                 }
-            } else {
+            
+            }
+            else {
+                strcpy(cc_algo, "reno");
+                if (setsockopt(sock, IPPROTO_TCP, TCP_CONGESTION, cc_algo, len) != 0) {
+                    perror("setsockopt");
+                    return -1;
+                }
+                if (getsockopt(sock, IPPROTO_TCP, TCP_CONGESTION, cc_algo, &len) != 0) {
+                    perror("getsockopt");
+                    return -1;
+                }
+
                 printf("Sending part B using reno CC algorithm\n");
                 bytesSent = send(sock, bufferB, size_of_B, 0);
                 if (bytesSent == -1) {
@@ -146,13 +152,16 @@ int main() {
                 } else {
                     printf("Sent total %ld bytes\n", bytesSent);
                 }
+
             }
 
-            bzero(getReply, sizeof(getReply));
-            read(sock, getReply, sizeof(getReply));
-            if (strcmp(getReply, "ACK") == 0)
-                printf("From Server : %s\n", getReply);
-            else printf("The Server didnt answer\n");
+           
+
+            // bzero(getReply, sizeof(getReply));
+            // read(sock, getReply, sizeof(getReply));
+            // if (strcmp(getReply, "ACK") == 0)
+            //     printf("From Server : %s\n", getReply);
+            // else printf("The Server didnt answer\n");
         }
 
 

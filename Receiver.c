@@ -17,7 +17,6 @@
 
 int main() {
 
-    socklen_t len;
     // signal(SIGPIPE, SIG_IGN);  // on linux to prevent crash on closing socket
 
     // Open the listening (server) socket
@@ -55,9 +54,9 @@ int main() {
         // close the socket
         close(listeningSocket);
         return -1;
-    }
+    }else printf("executed Bind() successfully\n");
 
-    printf("executed Bind() successfully\n");
+    
 
     // Make the socket listen.
     // 500 is a Maximum size of queue connection requests
@@ -68,61 +67,59 @@ int main() {
         // close the socket
         close(listeningSocket);
         return -1;
-    }
+    }else printf("Waiting for incoming TCP-connections...\n");
 
     // Accept and incoming connection
-    printf("Waiting for incoming TCP-connections...\n");
-    struct sockaddr_in clientAddress;  //
-    socklen_t clientAddressLen = sizeof(clientAddress);
-    //char sendbuffer[BUFFER_SIZE] = {'\0'};
-
-
+    
+    struct sockaddr_in clientAddress;  
     memset(&clientAddress, 0, sizeof(clientAddress));
-    clientAddressLen = sizeof(clientAddress);
-    int clientSocket = accept(listeningSocket, (struct sockaddr *) &clientAddress, &clientAddressLen);
+    socklen_t len_clientAddress= sizeof(clientAddress);
+   
+    int clientSocket = accept(listeningSocket, (struct sockaddr *) &clientAddress, &len_clientAddress);
     if (clientSocket == -1) {
         printf("listen failed with error code : %d", errno);
         // close the sockets
         close(listeningSocket);
         return -1;
-    } else {
-        printf("A new client connection accepted\n");
-    }
+    }else printf("A new client connection accepted\n");
+    
+    char cc_algo[SOCKET_SIZE];
+    
 
     for (int i = 0; i < 2; i++) {
 
-        printf("check 1\n");
-
-        int part_size[1];
-        recv(clientSocket, part_size, sizeof(int), 0);
-        int size = part_size[0];
-        printf("%d", size);
-
-        char cc_algo[SOCKET_SIZE];
-        if (i == 0)
+        char part = ' ';
+        if (i == 0){
             strcpy(cc_algo, "cubic");
-        else strcpy(cc_algo, "reno");
-
-        if (getsockopt(clientSocket, IPPROTO_TCP, TCP_CONGESTION, cc_algo, &len) != 0) {
+            part = 'A';
+        }
+        else {
+            strcpy(cc_algo, "reno");
+            part = 'B';
+        }
+        socklen_t len = sizeof(cc_algo);
+        if (setsockopt(listeningSocket, IPPROTO_TCP, TCP_CONGESTION, cc_algo, len) != 0) {
+            perror("setsockopt");
+            return -1;
+        }
+        if (getsockopt(listeningSocket, IPPROTO_TCP, TCP_CONGESTION, cc_algo, &len) != 0) {
             perror("getsockopt");
             return -1;
         }
 
-        if (i == 0)
-            printf("receiving part A using cubic CC algorithm\n");
-        else
-            printf("receiving part B using reno CC algorithm\n");
-
+        int part_size[1];
+        recv(clientSocket, part_size, sizeof(int), 0);
+        int size = part_size[0] - sizeof(int);
+        
         char buffer[BUNDLE];
-
         long total_byte_count = 0, current_bytes_count = 0;
         //double total_time = 0;
 
+        printf("receiving part %c using %s CC algorithm\n", part, cc_algo);
+
         struct timeval end, start;
         gettimeofday(&start, NULL);
-
         while (total_byte_count < (size / BUNDLE * BUNDLE)) {
-            printf("check 2\n");
 
             current_bytes_count = recv(clientSocket, buffer, BUNDLE, 0);
             total_byte_count += current_bytes_count;
@@ -135,7 +132,7 @@ int main() {
         if (total_byte_count == size - total_byte_count)
             total_byte_count += recv(clientSocket, buffer, (size - total_byte_count), 0);
         else
-            printf("something went wrong!!");
+            printf("something went wrong!!\n");
 
         gettimeofday(&end, NULL);
 
@@ -144,23 +141,19 @@ int main() {
             write(clientSocket, &xor, sizeof(xor));
         }
 
-        printf("Part A received. received %ld bytes.\n", total_byte_count);
+        printf("Part %c received. received %ld bytes.\n", part, total_byte_count);
 
-        double time =
-                (double) ((end.tv_sec - start.tv_sec) * 1000000 + end.tv_usec - start.tv_usec) / 1000000;
+        double time = (double)((end.tv_sec - start.tv_sec) * 1000000 + end.tv_usec - start.tv_usec) / 1000000;
 
-        printf("The time it took to receive part A is %f seconds.\n", time);
-
+        printf("The time it took to receive part %c is %f seconds.\n", part, time);
 
         total_byte_count = 0;
         buffer[total_byte_count] = '\0';
     }
 
-    printf("check check check");
 //
 //    printf("\nThe average time it took to get each file (out of 5 samples) in CC method %s is: %f\n\n", CC,
 //           avg_time);
-
 
 printf("Exit\n");
 close(listeningSocket);
